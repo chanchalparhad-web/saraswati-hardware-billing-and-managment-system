@@ -1,12 +1,6 @@
 {
   "name": "hardware-store-billing-system",
   "version": "1.0.0",
-  "private": true,
-  "scripts": {
-    "dev": "php -S 0.0.0.0:8000 api/index.php",
-    "start": "node server.js"
-  },
-  "engines": {
-    "node": ">=18.x"
-  }
+  "description": "Hardware Store Management & POS Billing System",
+  "private": true
 }
