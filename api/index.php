@@ -41,6 +41,12 @@ if (empty($file) || $file === 'index.php' || $file === 'api' || $file === 'api/i
 }
 
 $targetFile = __DIR__ . '/../' . $file;
+if (!file_exists($targetFile)) {
+    $publicTarget = __DIR__ . '/../public/' . $file;
+    if (file_exists($publicTarget)) {
+        $targetFile = $publicTarget;
+    }
+}
 
 // Prevent self-recursion
 if (realpath($targetFile) === __FILE__) {
