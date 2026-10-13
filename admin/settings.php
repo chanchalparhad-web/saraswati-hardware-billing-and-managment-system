@@ -22,16 +22,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'footer_note' => trim($_POST['footer_note'] ?? '')
     ];
 
-    $stmt = $db->prepare("INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = ?");
-    
-    // Fallback query for SQLite or MySQL
-    $stmtSqlite = $db->prepare("INSERT OR REPLACE INTO settings (setting_key, setting_value) VALUES (?, ?)");
+    $stmtCheck = $db->prepare("SELECT id FROM settings WHERE setting_key = ?");
+    $stmtUpdate = $db->prepare("UPDATE settings SET setting_value = ? WHERE setting_key = ?");
+    $stmtInsert = $db->prepare("INSERT INTO settings (setting_key, setting_value) VALUES (?, ?)");
 
     foreach ($settings as $key => $val) {
-        try {
-            $stmtSqlite->execute([$key, $val]);
-        } catch (Exception $e) {
-            $stmt->execute([$key, $val, $val]);
+        $stmtCheck->execute([$key]);
+        if ($stmtCheck->fetchColumn()) {
+            $stmtUpdate->execute([$val, $key]);
+        } else {
+            $stmtInsert->execute([$key, $val]);
         }
     }
 

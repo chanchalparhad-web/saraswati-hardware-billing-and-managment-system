@@ -67,34 +67,37 @@ try {
     $countSales = $stmtSeq->fetchColumn() + 1;
     $invoiceNo = sprintf("%s%s-%04d", $invoicePrefix, $datePart, $countSales);
 
-    // Calculate Bill Totals
+    // Calculate Bill Totals (GST Inclusive)
+    $totalGross = 0;
     $rawSubtotal = 0;
     $totalTax = 0;
 
     foreach ($items as $item) {
-        $qty = intval($item['qty']);
-        $price = floatval($item['price']);
+        $qty = max(1, intval($item['qty'] ?? 1));
+        $price = floatval($item['price'] ?? 0);
         $gstRate = floatval($item['gst_rate'] ?? 18);
 
-        $lineSubtotal = $qty * $price;
-        $lineTax = ($lineSubtotal * $gstRate) / 100;
+        $lineTotal = $qty * $price;
+        $lineTaxable = $gstRate > 0 ? ($lineTotal / (1 + ($gstRate / 100))) : $lineTotal;
+        $lineTax = $lineTotal - $lineTaxable;
 
-        $rawSubtotal += $lineSubtotal;
+        $totalGross += $lineTotal;
+        $rawSubtotal += $lineTaxable;
         $totalTax += $lineTax;
     }
 
     $discountAmount = 0;
     if ($discountType === 'percent') {
-        $discountAmount = ($rawSubtotal * $discountVal) / 100;
+        $discountAmount = ($totalGross * $discountVal) / 100;
     } else {
         $discountAmount = $discountVal;
     }
 
-    if ($discountAmount > $rawSubtotal) {
-        $discountAmount = $rawSubtotal;
+    if ($discountAmount > $totalGross) {
+        $discountAmount = $totalGross;
     }
 
-    $grandTotal = max(0, ($rawSubtotal - $discountAmount) + $totalTax);
+    $grandTotal = max(0, $totalGross - $discountAmount);
     
     if ($paymentMode === 'credit') {
         $paidAmount = min($paidAmountInput, $grandTotal);
@@ -172,9 +175,9 @@ try {
             }
         }
 
-        $lineSubtotal = $qty * $rate;
-        $lineTax = ($lineSubtotal * $gstRate) / 100;
-        $lineTotal = $lineSubtotal + $lineTax;
+        $lineTotal = $qty * $rate;
+        $lineTaxable = $gstRate > 0 ? ($lineTotal / (1 + ($gstRate / 100))) : $lineTotal;
+        $lineTax = $lineTotal - $lineTaxable;
 
         // Insert Item
         $stmtItem->execute([

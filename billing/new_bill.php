@@ -96,11 +96,11 @@ $categories = $catStmt->fetchAll();
                                 <span id="pos-total-items" class="fw-bold text-dark">0</span>
                             </div>
                             <div class="d-flex justify-content-between small text-muted">
-                                <span>Subtotal:</span>
+                                <span>Taxable Subtotal:</span>
                                 <span id="pos-subtotal" class="fw-bold text-dark">₹0.00</span>
                             </div>
                             <div class="d-flex justify-content-between small text-muted">
-                                <span>GST Tax Total:</span>
+                                <span>GST Tax (Included):</span>
                                 <span id="pos-tax-amount" class="fw-bold text-dark">₹0.00</span>
                             </div>
                         </div>
@@ -183,7 +183,7 @@ $categories = $catStmt->fetchAll();
                             <div class="col-6 col-sm-2">
                                 <div class="input-group input-group-sm">
                                     <span class="input-group-text">₹</span>
-                                    <input type="number" step="0.01" id="inline-prod-price" class="form-control fw-bold" placeholder="Price" required min="0.01">
+                                    <input type="number" step="0.01" id="inline-prod-price" class="form-control fw-bold" placeholder="Price (Incl. GST)" title="Price including GST" required min="0.01">
                                 </div>
                             </div>
                             <div class="col-6 col-sm-2">
@@ -257,7 +257,7 @@ $categories = $catStmt->fetchAll();
                                     <div class="small text-muted mb-2"><?php echo sanitize($p['product_code']); ?></div>
                                     <div class="mt-auto d-flex align-items-center justify-content-between border-top pt-2">
                                         <span class="fw-bold text-primary fs-6">₹<?php echo number_format($p['selling_price'], 2); ?></span>
-                                        <small class="text-muted" style="font-size: 0.75rem;">+<?php echo $p['gst_rate']; ?>% GST</small>
+                                        <small class="text-success fw-bold" style="font-size: 0.75rem;">(Incl. <?php echo $p['gst_rate']; ?>% GST)</small>
                                     </div>
                                 </div>
                             </div>
@@ -289,7 +289,7 @@ $categories = $catStmt->fetchAll();
                             <input type="text" id="quick-prod-name" class="form-control fw-bold" placeholder="e.g. Berger Primer 1L / Havells Wire 90m" required>
                         </div>
                         <div class="col-6">
-                            <label class="form-label small fw-bold">Selling Price (₹) *</label>
+                            <label class="form-label small fw-bold">Price (₹ Incl. GST) *</label>
                             <input type="number" step="0.01" id="quick-prod-price" class="form-control fw-bold" placeholder="0.00" required min="0.01">
                         </div>
                         <div class="col-6">
@@ -384,7 +384,7 @@ function appendProductToGrid(product) {
             <div class="small text-muted mb-2">${product.product_code || ''}</div>
             <div class="mt-auto d-flex align-items-center justify-content-between border-top pt-2">
                 <span class="fw-bold text-primary fs-6">₹${parseFloat(product.selling_price).toFixed(2)}</span>
-                <small class="text-muted" style="font-size: 0.75rem;">+${product.gst_rate || 18}% GST</small>
+                <small class="text-success fw-bold" style="font-size: 0.75rem;">(Incl. ${product.gst_rate || 18}% GST)</small>
             </div>
         </div>
     `;

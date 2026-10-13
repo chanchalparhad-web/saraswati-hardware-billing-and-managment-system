@@ -149,14 +149,18 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        let rawSubtotal = 0;
+        let totalGross = 0;
+        let taxableSubtotal = 0;
         let totalTax = 0;
 
         cart.forEach((item, index) => {
-            const lineSubtotal = item.qty * item.price;
-            const lineTax = (lineSubtotal * item.gst_rate) / 100;
+            const lineTotal = item.qty * item.price;
+            const gstRate = parseFloat(item.gst_rate) || 0;
+            const lineTaxable = gstRate > 0 ? (lineTotal / (1 + (gstRate / 100))) : lineTotal;
+            const lineTax = lineTotal - lineTaxable;
 
-            rawSubtotal += lineSubtotal;
+            totalGross += lineTotal;
+            taxableSubtotal += lineTaxable;
             totalTax += lineTax;
 
             const tr = document.createElement('tr');
@@ -173,8 +177,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     </div>
                 </td>
                 <td class="align-middle text-end">₹${item.price.toFixed(2)}</td>
-                <td class="align-middle text-center"><span class="badge bg-light text-dark border">${item.gst_rate}%</span></td>
-                <td class="align-middle text-end fw-bold">₹${(lineSubtotal + lineTax).toFixed(2)}</td>
+                <td class="align-middle text-center"><span class="badge bg-light text-dark border">${item.gst_rate}% (Incl)</span></td>
+                <td class="align-middle text-end fw-bold">₹${lineTotal.toFixed(2)}</td>
                 <td class="align-middle text-center">
                     <button class="btn btn-sm btn-link text-danger" onclick="removeFromCart(${index})">
                         <i class="fa-solid fa-trash"></i>
@@ -190,16 +194,16 @@ document.addEventListener('DOMContentLoaded', function () {
         let discountAmount = 0;
 
         if (discountType === 'percent') {
-            discountAmount = (rawSubtotal * discountVal) / 100;
+            discountAmount = (totalGross * discountVal) / 100;
         } else {
             discountAmount = discountVal;
         }
 
-        if (discountAmount > rawSubtotal) {
-            discountAmount = rawSubtotal;
+        if (discountAmount > totalGross) {
+            discountAmount = totalGross;
         }
 
-        const grandTotal = Math.max(0, (rawSubtotal - discountAmount) + totalTax);
+        const grandTotal = Math.max(0, totalGross - discountAmount);
 
         // Update Paid input default to Grand Total if cash/upi
         if (paidAmountInput && (!paidAmountInput.dataset.userEdited || paidAmountInput.dataset.userEdited === 'false')) {
@@ -209,7 +213,7 @@ document.addEventListener('DOMContentLoaded', function () {
         let paidAmount = parseFloat(paidAmountInput ? paidAmountInput.value : grandTotal) || 0;
         let dueAmount = Math.max(0, grandTotal - paidAmount);
 
-        updatePOSSummary(rawSubtotal, discountAmount, totalTax, grandTotal, dueAmount);
+        updatePOSSummary(taxableSubtotal, discountAmount, totalTax, grandTotal, dueAmount);
     }
 
     function updatePOSSummary(subtotal, discount, tax, grandTotal, due) {

@@ -624,8 +624,10 @@ $amountInWords = convertNumberToIndianWords($sale['grand_total']);
             $totalSgst = 0;
 
             foreach ($items as $item): 
-                $lineTaxable = $item['qty'] * $item['rate'];
-                $lineTax = $item['tax_amount'];
+                $lineTotal = floatval($item['total_amount']);
+                $gstRate = floatval($item['tax_percent']);
+                $lineTaxable = $gstRate > 0 ? ($lineTotal / (1 + ($gstRate / 100))) : $lineTotal;
+                $lineTax = $lineTotal - $lineTaxable;
                 $totalTaxable += $lineTaxable;
                 $halfTax = $lineTax / 2;
                 $totalCgst += $halfTax;
@@ -644,7 +646,7 @@ $amountInWords = convertNumberToIndianWords($sale['grand_total']);
                     <td class="num"><?php echo number_format($lineTaxable, 2); ?></td>
                     <td class="center"><?php echo $item['tax_percent']; ?>%</td>
                     <td class="num"><?php echo number_format($lineTax, 2); ?></td>
-                    <td class="num" style="font-weight:700;"><?php echo number_format($item['total_amount'], 2); ?></td>
+                    <td class="num" style="font-weight:700;"><?php echo number_format($lineTotal, 2); ?></td>
                 </tr>
             <?php endforeach; ?>
         </tbody>
