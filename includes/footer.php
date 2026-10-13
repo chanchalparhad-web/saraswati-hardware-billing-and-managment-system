@@ -6,8 +6,8 @@
 
 <!-- App custom JS (Inline injection guarantees 100% functionality on Vercel without CDN 404s) -->
 <?php 
-$jsFile = __DIR__ . '/../assets/js/app.js';
-if (file_exists($jsFile)): ?>
+$jsFile = file_exists(__DIR__ . '/app.js') ? __DIR__ . '/app.js' : (file_exists(__DIR__ . '/../assets/js/app.js') ? __DIR__ . '/../assets/js/app.js' : null);
+if ($jsFile && file_exists($jsFile)): ?>
 <script>
 <?php echo file_get_contents($jsFile); ?>
 </script>

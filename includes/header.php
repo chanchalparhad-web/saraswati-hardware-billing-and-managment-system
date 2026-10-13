@@ -26,8 +26,8 @@ $user = current_user();
 
     <!-- Custom CSS (Inline injection guarantees 100% styling on Vercel without CDN 404s) -->
     <?php 
-    $cssFile = __DIR__ . '/../assets/css/style.css';
-    if (file_exists($cssFile)): ?>
+    $cssFile = file_exists(__DIR__ . '/style.css') ? __DIR__ . '/style.css' : (file_exists(__DIR__ . '/../assets/css/style.css') ? __DIR__ . '/../assets/css/style.css' : null);
+    if ($cssFile && file_exists($cssFile)): ?>
     <style>
     <?php echo file_get_contents($cssFile); ?>
     </style>
