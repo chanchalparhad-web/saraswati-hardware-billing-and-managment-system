@@ -11,6 +11,81 @@ if (function_exists('sys_get_temp_dir')) {
     }
 }
 
+if (!function_exists('get_app_secret')) {
+    function get_app_secret() {
+        return getenv('APP_SECRET') ?: 'hw-store-jwt-secure-salt-vercel-2026';
+    }
+}
+
+if (!function_exists('set_auth_cookie')) {
+    function set_auth_cookie($user) {
+        $data = [
+            'id'       => $user['id'] ?? null,
+            'username' => $user['username'] ?? '',
+            'name'     => $user['name'] ?? '',
+            'role'     => $user['role'] ?? 'staff',
+            'email'    => $user['email'] ?? '',
+            'time'     => time()
+        ];
+        $json = json_encode($data);
+        $sig = hash_hmac('sha256', $json, get_app_secret());
+        $token = base64_encode($sig . '::' . $json);
+        $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || 
+                   (($_SERVER['SERVER_PORT'] ?? '') == 443) || 
+                   (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+        setcookie('hw_auth_token', $token, [
+            'expires'  => time() + (86400 * 7),
+            'path'     => '/',
+            'secure'   => $isHttps,
+            'httponly' => true,
+            'samesite' => 'Lax'
+        ]);
+    }
+}
+
+if (!function_exists('clear_auth_cookie')) {
+    function clear_auth_cookie() {
+        $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || 
+                   (($_SERVER['SERVER_PORT'] ?? '') == 443) || 
+                   (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+        setcookie('hw_auth_token', '', [
+            'expires'  => time() - 3600,
+            'path'     => '/',
+            'secure'   => $isHttps,
+            'httponly' => true,
+            'samesite' => 'Lax'
+        ]);
+        unset($_COOKIE['hw_auth_token']);
+    }
+}
+
+if (!function_exists('restore_session_from_cookie')) {
+    function restore_session_from_cookie() {
+        if (!empty($_SESSION['user_id'])) {
+            return;
+        }
+        if (empty($_COOKIE['hw_auth_token'])) {
+            return;
+        }
+        $raw = base64_decode($_COOKIE['hw_auth_token'], true);
+        if (!$raw || strpos($raw, '::') === false) {
+            return;
+        }
+        list($sig, $json) = explode('::', $raw, 2);
+        $expectedSig = hash_hmac('sha256', $json, get_app_secret());
+        if (hash_equals($expectedSig, $sig)) {
+            $userData = json_decode($json, true);
+            if ($userData && !empty($userData['id'])) {
+                $_SESSION['user_id']  = $userData['id'];
+                $_SESSION['username'] = $userData['username'] ?? '';
+                $_SESSION['name']     = $userData['name'] ?? '';
+                $_SESSION['role']     = $userData['role'] ?? 'staff';
+                $_SESSION['email']    = $userData['email'] ?? '';
+            }
+        }
+    }
+}
+
 if (session_status() === PHP_SESSION_NONE) {
     $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || 
                (($_SERVER['SERVER_PORT'] ?? '') == 443) || 
@@ -538,72 +613,4 @@ function get_flash() {
         return $flash;
     }
     return null;
-}
-
-// Serverless Authentication Cookie Helpers (HMAC-SHA256 Signed)
-function get_app_secret() {
-    return getenv('APP_SECRET') ?: 'hw-store-jwt-secure-salt-vercel-2026';
-}
-
-function set_auth_cookie($user) {
-    $data = [
-        'id'       => $user['id'] ?? null,
-        'username' => $user['username'] ?? '',
-        'name'     => $user['name'] ?? '',
-        'role'     => $user['role'] ?? 'staff',
-        'email'    => $user['email'] ?? '',
-        'time'     => time()
-    ];
-    $json = json_encode($data);
-    $sig = hash_hmac('sha256', $json, get_app_secret());
-    $token = base64_encode($sig . '::' . $json);
-    $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || 
-               (($_SERVER['SERVER_PORT'] ?? '') == 443) || 
-               (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
-    setcookie('hw_auth_token', $token, [
-        'expires'  => time() + (86400 * 7),
-        'path'     => '/',
-        'secure'   => $isHttps,
-        'httponly' => true,
-        'samesite' => 'Lax'
-    ]);
-}
-
-function clear_auth_cookie() {
-    $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || 
-               (($_SERVER['SERVER_PORT'] ?? '') == 443) || 
-               (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
-    setcookie('hw_auth_token', '', [
-        'expires'  => time() - 3600,
-        'path'     => '/',
-        'secure'   => $isHttps,
-        'httponly' => true,
-        'samesite' => 'Lax'
-    ]);
-    unset($_COOKIE['hw_auth_token']);
-}
-
-function restore_session_from_cookie() {
-    if (!empty($_SESSION['user_id'])) {
-        return;
-    }
-    if (empty($_COOKIE['hw_auth_token'])) {
-        return;
-    }
-    $raw = base64_decode($_COOKIE['hw_auth_token'], true);
-    if (!$raw || strpos($raw, '::') === false) {
-        return;
-    }
-    list($sig, $json) = explode('::', $raw, 2);
-    $expectedSig = hash_hmac('sha256', $json, get_app_secret());
-    if (hash_equals($expectedSig, $sig)) {
-        $userData = json_decode($json, true);
-        if ($userData && !empty($userData['id'])) {
-            $_SESSION['user_id']  = $userData['id'];
-            $_SESSION['username'] = $userData['username'] ?? '';
-            $_SESSION['name']     = $userData['name'] ?? '';
-            $_SESSION['role']     = $userData['role'] ?? 'staff';
-            $_SESSION['email']    = $userData['email'] ?? '';
-        }
-    }
 }

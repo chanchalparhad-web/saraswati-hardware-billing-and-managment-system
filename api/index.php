@@ -20,25 +20,32 @@ if (isset($parsedUrl['query']) && $parsedUrl['query'] !== '') {
 $file = ltrim($path, '/');
 
 // Helper to execute target PHP file with correct server variables
-function run_php($filePath) {
-    $rootDir = str_replace('\\', '/', dirname(__DIR__));
-    $normPath = str_replace('\\', '/', realpath($filePath) ?: $filePath);
-    $relPath = '/' . ltrim(str_replace($rootDir, '', $normPath), '/');
+if (!function_exists('run_php')) {
+    function run_php($filePath) {
+        $rootDir = str_replace('\\', '/', dirname(__DIR__));
+        $normPath = str_replace('\\', '/', realpath($filePath) ?: $filePath);
+        $relPath = '/' . ltrim(str_replace($rootDir, '', $normPath), '/');
 
-    $_SERVER['SCRIPT_NAME'] = $relPath;
-    $_SERVER['PHP_SELF'] = $relPath;
-    $_SERVER['SCRIPT_FILENAME'] = $normPath;
+        $_SERVER['SCRIPT_NAME'] = $relPath;
+        $_SERVER['PHP_SELF'] = $relPath;
+        $_SERVER['SCRIPT_FILENAME'] = $normPath;
 
-    require $filePath;
-    exit;
+        require $filePath;
+        exit;
+    }
 }
 
-// 1. Root request -> index.php
-if (empty($file) || $file === 'index.php') {
+// 1. Root or API self-request -> index.php
+if (empty($file) || $file === 'index.php' || $file === 'api' || $file === 'api/index.php') {
     run_php(__DIR__ . '/../index.php');
 }
 
 $targetFile = __DIR__ . '/../' . $file;
+
+// Prevent self-recursion
+if (realpath($targetFile) === __FILE__) {
+    run_php(__DIR__ . '/../index.php');
+}
 
 // 2. Direct match for PHP or static asset
 if (file_exists($targetFile) && !is_dir($targetFile)) {
