@@ -145,11 +145,32 @@ try {
     $stmtGetStock = $db->prepare("SELECT current_stock FROM products WHERE id = ?");
 
     foreach ($items as $item) {
-        $productId = intval($item['id']);
-        $productName = sanitize($item['name']);
-        $qty = intval($item['qty']);
-        $rate = floatval($item['price']);
+        $productId = intval($item['id'] ?? 0);
+        $productName = sanitize($item['name'] ?? 'Hardware Item');
+        $qty = max(1, intval($item['qty'] ?? 1));
+        $rate = floatval($item['price'] ?? 0);
         $gstRate = floatval($item['gst_rate'] ?? 18);
+
+        // If product is newly added without catalog ID, persist it to products catalog table!
+        if ($productId <= 0) {
+            $stmtFindP = $db->prepare("SELECT id FROM products WHERE LOWER(name) = LOWER(?) LIMIT 1");
+            $stmtFindP->execute([$productName]);
+            $foundPId = $stmtFindP->fetchColumn();
+            if ($foundPId) {
+                $productId = (int)$foundPId;
+            } else {
+                $unit = sanitize($item['unit'] ?? 'Piece');
+                $pCode = 'PRD-HW-' . rand(1000, 9999);
+                $purchasePrice = round($rate * 0.8, 2);
+                $stmtInsP = $db->prepare("
+                    INSERT INTO products 
+                    (product_code, barcode, name, category_id, brand, description, unit, purchase_price, selling_price, mrp, gst_rate, opening_stock, current_stock, min_stock, location_rack, status)
+                    VALUES (?, '', ?, 1, 'General', 'Added at POS billing', ?, ?, ?, ?, ?, 100, 100, 5, 'Counter', 1)
+                ");
+                $stmtInsP->execute([$pCode, $productName, $unit, $purchasePrice, $rate, $rate, $gstRate]);
+                $productId = (int)$db->lastInsertId();
+            }
+        }
 
         $lineSubtotal = $qty * $rate;
         $lineTax = ($lineSubtotal * $gstRate) / 100;

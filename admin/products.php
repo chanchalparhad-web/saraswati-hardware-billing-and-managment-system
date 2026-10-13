@@ -17,7 +17,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'save_product') {
         $id = intval($_POST['id'] ?? 0);
         $code = trim($_POST['product_code'] ?? '');
-        $barcode = trim($_POST['barcode'] ?? '');
         $name = trim($_POST['name'] ?? '');
         $category_id = intval($_POST['category_id'] ?? 0);
         $brand = trim($_POST['brand'] ?? '');
@@ -39,20 +38,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Edit product
                 $stmt = $db->prepare("
                     UPDATE products SET 
-                    product_code = ?, barcode = ?, name = ?, category_id = ?, brand = ?, description = ?, unit = ?,
+                    product_code = ?, name = ?, category_id = ?, brand = ?, description = ?, unit = ?,
                     purchase_price = ?, selling_price = ?, mrp = ?, gst_rate = ?, current_stock = ?, min_stock = ?, location_rack = ?
                     WHERE id = ?
                 ");
-                $stmt->execute([$code, $barcode, $name, $category_id, $brand, $description, $unit, $purchase_price, $selling_price, $mrp, $gst_rate, $current_stock, $min_stock, $location_rack, $id]);
+                $stmt->execute([$code, $name, $category_id, $brand, $description, $unit, $purchase_price, $selling_price, $mrp, $gst_rate, $current_stock, $min_stock, $location_rack, $id]);
                 $msg = 'Product updated successfully!';
                 $msgType = 'success';
             } else {
                 // Add product
                 $stmt = $db->prepare("
                     INSERT INTO products (product_code, barcode, name, category_id, brand, description, unit, purchase_price, selling_price, mrp, gst_rate, opening_stock, current_stock, min_stock, location_rack, status)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+                    VALUES (?, '', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
                 ");
-                $stmt->execute([$code, $barcode, $name, $category_id, $brand, $description, $unit, $purchase_price, $selling_price, $mrp, $gst_rate, $current_stock, $current_stock, $min_stock, $location_rack]);
+                $stmt->execute([$code, $name, $category_id, $brand, $description, $unit, $purchase_price, $selling_price, $mrp, $gst_rate, $current_stock, $current_stock, $min_stock, $location_rack]);
                 $msg = 'Product added successfully!';
                 $msgType = 'success';
             }
@@ -76,9 +75,9 @@ $query = "SELECT p.*, c.name as category_name FROM products p JOIN categories c 
 $params = [];
 
 if (!empty($search)) {
-    $query .= " AND (p.name LIKE ? OR p.product_code LIKE ? OR p.barcode LIKE ? OR p.brand LIKE ?)";
+    $query .= " AND (p.name LIKE ? OR p.product_code LIKE ? OR p.brand LIKE ?)";
     $term = "%$search%";
-    $params = array_merge($params, [$term, $term, $term, $term]);
+    $params = array_merge($params, [$term, $term, $term]);
 }
 if ($catFilter > 0) {
     $query .= " AND p.category_id = ?";
@@ -110,7 +109,7 @@ $categories = $db->query("SELECT * FROM categories WHERE status = 1 ORDER BY nam
         <div class="d-flex align-items-center justify-content-between mb-4">
             <div>
                 <h4 class="fw-bold mb-1">Product Management</h4>
-                <p class="text-muted small mb-0">Manage hardware catalog items, prices, barcodes, and stock parameters</p>
+                <p class="text-muted small mb-0">Manage hardware catalog items, prices, and stock parameters</p>
             </div>
             <button class="btn btn-primary fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#productModal" onclick="resetForm()">
                 <i class="fa-solid fa-plus me-1"></i> ADD NEW PRODUCT
@@ -123,7 +122,7 @@ $categories = $db->query("SELECT * FROM categories WHERE status = 1 ORDER BY nam
                 <div class="col-md-5">
                     <div class="input-group">
                         <span class="input-group-text bg-light text-muted"><i class="fa-solid fa-magnifying-glass"></i></span>
-                        <input type="text" name="search" class="form-control" placeholder="Search by name, SKU, barcode, brand..." value="<?php echo sanitize($search); ?>">
+                        <input type="text" name="search" class="form-control" placeholder="Search by name, SKU code, brand..." value="<?php echo sanitize($search); ?>">
                     </div>
                 </div>
                 <div class="col-md-4">
@@ -149,7 +148,7 @@ $categories = $db->query("SELECT * FROM categories WHERE status = 1 ORDER BY nam
                 <table class="table table-hover align-middle mb-0 custom-table">
                     <thead>
                         <tr>
-                            <th>Code / Barcode</th>
+                            <th>Item Code</th>
                             <th>Product Name</th>
                             <th>Category</th>
                             <th>Brand</th>
@@ -171,9 +170,6 @@ $categories = $db->query("SELECT * FROM categories WHERE status = 1 ORDER BY nam
                                 <tr>
                                     <td>
                                         <span class="fw-bold text-dark"><?php echo sanitize($p['product_code']); ?></span>
-                                        <?php if (!empty($p['barcode'])): ?>
-                                            <div class="small text-muted"><i class="fa-solid fa-barcode me-1"></i><?php echo sanitize($p['barcode']); ?></div>
-                                        <?php endif; ?>
                                     </td>
                                     <td>
                                         <div class="fw-bold text-primary"><?php echo sanitize($p['name']); ?></div>
@@ -232,15 +228,11 @@ $categories = $db->query("SELECT * FROM categories WHERE status = 1 ORDER BY nam
 
                 <div class="modal-body">
                     <div class="row g-3">
-                        <div class="col-md-4">
+                        <div class="col-md-6">
                             <label class="form-label small fw-bold">SKU / Product Code *</label>
-                            <input type="text" name="product_code" id="prod_code" class="form-control" required placeholder="PRD-PLM-005">
+                            <input type="text" name="product_code" id="prod_code" class="form-control" required placeholder="PRD-HW-1001">
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label small fw-bold">Barcode</label>
-                            <input type="text" name="barcode" id="prod_barcode" class="form-control" placeholder="890123456789">
-                        </div>
-                        <div class="col-md-4">
+                        <div class="col-md-6">
                             <label class="form-label small fw-bold">Category *</label>
                             <select name="category_id" id="prod_category" class="form-select" required>
                                 <option value="">Select Category</option>
@@ -322,7 +314,6 @@ function resetForm() {
     document.getElementById('prod_id').value = '0';
     document.getElementById('modalTitle').innerHTML = '<i class="fa-solid fa-box me-2 text-primary"></i> Add Hardware Product';
     document.getElementById('prod_code').value = 'PRD-HW-' + Math.floor(1000 + Math.random() * 9000);
-    document.getElementById('prod_barcode').value = '';
     document.getElementById('prod_name').value = '';
     document.getElementById('prod_category').value = '';
     document.getElementById('prod_brand').value = '';
@@ -341,7 +332,6 @@ function editProduct(p) {
     document.getElementById('prod_id').value = p.id;
     document.getElementById('modalTitle').innerHTML = '<i class="fa-solid fa-pen-to-square me-2 text-primary"></i> Edit Product';
     document.getElementById('prod_code').value = p.product_code;
-    document.getElementById('prod_barcode').value = p.barcode || '';
     document.getElementById('prod_name').value = p.name;
     document.getElementById('prod_category').value = p.category_id;
     document.getElementById('prod_brand').value = p.brand || '';

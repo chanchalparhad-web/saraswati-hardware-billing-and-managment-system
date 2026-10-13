@@ -265,35 +265,6 @@ INSERT INTO `customers` (`id`, `name`, `mobile`, `email`, `address`, `gst_number
 (4, 'Amit Verma', '9876543212', 'customer@gmail.com', 'Flat 402, Sunshine Apartments', NULL, 10000.00, 0.00)
 ON DUPLICATE KEY UPDATE `name`=`name`;
 
-INSERT INTO `products` (`id`, `product_code`, `barcode`, `name`, `category_id`, `brand`, `description`, `unit`, `purchase_price`, `selling_price`, `mrp`, `gst_rate`, `opening_stock`, `current_stock`, `min_stock`, `location_rack`) VALUES
-(1, 'PRD-PLM-001', '890123456781', 'PVC Pipe 110mm 3 Meter (10ft)', 1, 'Supreme', 'Heavy duty 4kg/cm2 PVC drainage pipe', 'Piece', 180.00, 220.00, 250.00, 18.00, 100, 50, 15, 'Rack A-1'),
-(2, 'PRD-PLM-002', '890123456782', 'Brass Bib Tap 1/2 Inch', 1, 'Jaquar', 'Solid brass chrome finish bib tap', 'Piece', 260.00, 350.00, 420.00, 18.00, 40, 22, 5, 'Rack A-3'),
-(3, 'PRD-PLM-003', '890123456783', 'PVC Elbow 110mm 90 Degree', 1, 'Supreme', 'Drainage PVC elbow fitting', 'Piece', 28.00, 40.00, 50.00, 18.00, 200, 140, 30, 'Rack A-2'),
-(4, 'PRD-ELE-001', '890123456784', 'Havells 2.5 sqmm FR Wire 90m (Red)', 2, 'Havells', 'Flame retardant copper electrical wire coil', 'Roll', 1850.00, 2350.00, 2700.00, 18.00, 25, 12, 5, 'Rack B-1'),
-(5, 'PRD-ELE-002', '890123456785', 'Anchor Modular Switch 16A White', 2, 'Anchor', '16 Ampere 1-way modular rocker switch', 'Piece', 32.00, 48.00, 60.00, 18.00, 150, 85, 20, 'Rack B-3'),
-(6, 'PRD-ELE-003', '890123456786', 'MCB Single Pole 16A C-Curve', 2, 'Schneider', 'Miniature circuit breaker 10kA', 'Piece', 120.00, 175.00, 210.00, 18.00, 50, 8, 10, 'Rack B-2'),
-(7, 'PRD-TLS-001', '890123456787', 'Bosch Professional Angle Grinder 4"', 3, 'Bosch', '670W 11000 RPM heavy duty angle grinder', 'Piece', 2100.00, 2750.00, 3200.00, 18.00, 15, 6, 2, 'Rack C-1'),
-(8, 'PRD-TLS-002', '890123456788', 'Stanley Claw Hammer 500g Steel Handle', 3, 'Stanley', 'Forged high carbon steel head with rubber grip', 'Piece', 320.00, 450.00, 550.00, 18.00, 30, 18, 5, 'Rack C-2'),
-(9, 'PRD-PNT-001', '890123456789', 'Asian Paints Royale Emulsion White 20L', 4, 'Asian Paints', 'Luxury interior emulsion paint smooth finish', 'Bucket', 4500.00, 5600.00, 6400.00, 18.00, 10, 4, 3, 'Rack D-1'),
-(10, 'PRD-PNT-002', '890123456790', 'Paint Roller 9 Inch Heavy Duty', 4, 'Royal', 'Microfiber lint free paint roller with handle', 'Piece', 75.00, 120.00, 150.00, 18.00, 60, 35, 10, 'Rack D-3'),
-(11, 'PRD-FST-001', '890123456791', 'Stainless Steel Hex Bolt M6 x 50mm (Pack of 50)', 5, 'Unbrako', '304 Grade stainless steel bolts with nuts', 'Packet', 110.00, 160.00, 200.00, 18.00, 80, 42, 15, 'Bin E-1'),
-(12, 'PRD-ADH-001', '890123456792', 'Fevicol SH Synthetic Resin Adhesive 1kg', 8, 'Pidilite', 'Woodworking water resistant adhesive jar', 'Jar', 210.00, 280.00, 320.00, 18.00, 40, 16, 5, 'Rack F-1'),
-(13, 'PRD-SFT-001', '890123456793', 'Industrial Safety Helmet Yellow HDPE', 7, 'Karam', 'Ratchet type adjustable head harness helmet', 'Piece', 140.00, 210.00, 260.00, 18.00, 30, 11, 5, 'Rack G-1')
-ON DUPLICATE KEY UPDATE `product_code`=`product_code`;
-
--- Sample Sales
-INSERT INTO `sales` (`id`, `invoice_no`, `customer_id`, `sale_type`, `sale_date`, `total_amount`, `discount_amount`, `tax_amount`, `grand_total`, `paid_amount`, `due_amount`, `payment_mode`, `payment_status`, `status`, `user_id`) VALUES
-(1, 'INV-202610-001', 1, 'offline', NOW(), 2000.00, 100.00, 342.00, 2242.00, 2242.00, 0.00, 'cash', 'paid', 'completed', 2),
-(2, 'INV-202610-002', 2, 'offline', CURRENT_DATE(), 30000.00, 0.00, 5400.00, 35400.00, 0.00, 35400.00, 'credit', 'due', 'completed', 1),
-(3, 'INV-202610-003', 3, 'offline', CURRENT_DATE(), 4200.00, 200.00, 720.00, 4720.00, 4720.00, 0.00, 'upi', 'paid', 'completed', 2)
-ON DUPLICATE KEY UPDATE `invoice_no`=`invoice_no`;
-
-INSERT INTO `sale_items` (`id`, `sale_id`, `product_id`, `product_name`, `qty`, `rate`, `tax_percent`, `tax_amount`, `total_amount`) VALUES
-(1, 1, 1, 'PVC Pipe 110mm 3 Meter (10ft)', 5, 220.00, 18.00, 198.00, 1100.00),
-(2, 1, 2, 'Brass Bib Tap 1/2 Inch', 2, 350.00, 18.00, 126.00, 700.00),
-(3, 1, 3, 'PVC Elbow 110mm 90 Degree', 5, 40.00, 18.00, 36.00, 200.00)
-ON DUPLICATE KEY UPDATE `sale_id`=`sale_id`;
-
 -- Sample Expenses
 INSERT INTO `expenses` (`id`, `category`, `description`, `amount`, `expense_date`, `payment_method`, `notes`) VALUES
 (1, 'Shop Rent', 'Monthly shop premises rent for October', 12000.00, CURRENT_DATE(), 'bank_transfer', 'Owner bank account transfer'),

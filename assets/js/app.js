@@ -32,10 +32,21 @@ document.addEventListener('DOMContentLoaded', function () {
     // Keyboard Shortcuts
     function initPOSShortcuts() {
         document.addEventListener('keydown', function (e) {
-            // F2: Focus search / Add item
+            // F2: Focus search
             if (e.key === 'F2') {
                 e.preventDefault();
                 if (searchInput) searchInput.focus();
+            }
+            // F3: Quick Add Item (focus inline name or trigger modal)
+            if (e.key === 'F3') {
+                e.preventDefault();
+                const inlineInput = document.getElementById('inline-prod-name');
+                if (inlineInput) {
+                    inlineInput.focus();
+                } else {
+                    const quickModalBtn = document.querySelector('[data-bs-target="#quickAddProductModal"]');
+                    if (quickModalBtn) quickModalBtn.click();
+                }
             }
             // F4: Clear / Reset bill
             if (e.key === 'F4') {
@@ -65,28 +76,33 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Add product to POS Cart
     window.addToCart = function (product) {
-        const existingIndex = cart.findIndex(item => item.id === product.id);
+        const prodName = product.name || 'Item';
+        const maxStock = (product.current_stock !== undefined && product.current_stock !== null) ? parseInt(product.current_stock) : 999;
+
+        const existingIndex = (product.id && product.id > 0)
+            ? cart.findIndex(item => item.id === product.id)
+            : cart.findIndex(item => (item.name || '').toLowerCase() === prodName.toLowerCase());
 
         if (existingIndex > -1) {
-            if (cart[existingIndex].qty + 1 > product.current_stock) {
-                alert(`Stock Limit Reached! Only ${product.current_stock} units available.`);
+            if (cart[existingIndex].qty + 1 > cart[existingIndex].max_stock) {
+                alert(`Stock Limit Reached! Only ${cart[existingIndex].max_stock} units available.`);
                 return;
             }
             cart[existingIndex].qty += 1;
         } else {
-            if (product.current_stock <= 0) {
+            if (maxStock <= 0) {
                 alert('This product is Out of Stock!');
                 return;
             }
             cart.push({
-                id: product.id,
-                name: product.name,
-                code: product.product_code,
-                price: parseFloat(product.selling_price),
-                gst_rate: parseFloat(product.gst_rate || 18),
+                id: product.id || 0,
+                name: prodName,
+                code: product.product_code || 'PRD-CUSTOM',
+                price: parseFloat(product.selling_price || 0),
+                gst_rate: parseFloat(product.gst_rate !== undefined ? product.gst_rate : 18),
                 qty: 1,
-                max_stock: product.current_stock,
-                unit: product.unit
+                max_stock: maxStock,
+                unit: product.unit || 'Piece'
             });
         }
 
@@ -310,11 +326,10 @@ document.addEventListener('DOMContentLoaded', function () {
             const productCards = document.querySelectorAll('.pos-product-item');
 
             productCards.forEach(card => {
-                const name = card.getAttribute('data-name').toLowerCase();
-                const code = card.getAttribute('data-code').toLowerCase();
-                const barcode = card.getAttribute('data-barcode').toLowerCase();
+                const name = (card.getAttribute('data-name') || '').toLowerCase();
+                const code = (card.getAttribute('data-code') || '').toLowerCase();
 
-                if (name.includes(query) || code.includes(query) || barcode.includes(query)) {
+                if (name.includes(query) || code.includes(query)) {
                     card.style.display = 'block';
                 } else {
                     card.style.display = 'none';
