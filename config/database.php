@@ -387,6 +387,7 @@ function init_sqlite_db($pdo) {
       payment_status TEXT DEFAULT 'paid',
       status TEXT DEFAULT 'completed',
       notes TEXT,
+      bill_type TEXT DEFAULT 'gst',
       user_id INTEGER,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );

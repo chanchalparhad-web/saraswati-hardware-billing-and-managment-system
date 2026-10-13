@@ -40,6 +40,25 @@ $categories = $catStmt->fetchAll();
                         </div>
                     </div>
 
+                    <!-- Bill Type Mode Selector -->
+                    <div class="d-flex align-items-center justify-content-between p-2 mb-2 rounded bg-white border shadow-sm">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-primary px-2 py-1"><i class="fa-solid fa-receipt me-1"></i> BILL MODE:</span>
+                            <span id="bill-mode-indicator" class="fw-bold small text-primary">🧾 GST Bill (Tax Invoice)</span>
+                        </div>
+                        <div class="btn-group btn-group-sm" role="group" aria-label="Bill Type">
+                            <input type="radio" class="btn-check" name="bill_type_radio" id="bill_type_gst" value="gst" checked onchange="setBillType('gst')">
+                            <label class="btn btn-outline-primary fw-bold px-2 py-1" for="bill_type_gst">
+                                <i class="fa-solid fa-file-invoice me-1"></i> GST Bill
+                            </label>
+
+                            <input type="radio" class="btn-check" name="bill_type_radio" id="bill_type_nongst" value="non_gst" onchange="setBillType('non_gst')">
+                            <label class="btn btn-outline-secondary fw-bold px-2 py-1" for="bill_type_nongst">
+                                <i class="fa-solid fa-file-lines me-1"></i> Non-GST Bill
+                            </label>
+                        </div>
+                    </div>
+
                     <div class="row g-2">
                         <div class="col-md-4">
                             <label class="form-label small fw-bold mb-1 text-secondary">Customer Name *</label>
@@ -96,11 +115,11 @@ $categories = $catStmt->fetchAll();
                                 <span id="pos-total-items" class="fw-bold text-dark">0</span>
                             </div>
                             <div class="d-flex justify-content-between small text-muted">
-                                <span>Taxable Subtotal:</span>
+                                <span id="pos-subtotal-label">Taxable Subtotal:</span>
                                 <span id="pos-subtotal" class="fw-bold text-dark">₹0.00</span>
                             </div>
                             <div class="d-flex justify-content-between small text-muted">
-                                <span>GST Tax (Included):</span>
+                                <span id="pos-tax-label">GST Tax (Included):</span>
                                 <span id="pos-tax-amount" class="fw-bold text-dark">₹0.00</span>
                             </div>
                         </div>
@@ -140,10 +159,13 @@ $categories = $catStmt->fetchAll();
                     </div>
 
                     <div class="d-grid gap-2 d-md-flex">
-                        <button type="button" id="btn-save-bill" class="btn btn-success flex-fill py-2 fw-bold" onclick="saveBill(false)">
+                        <button type="button" id="btn-save-bill" class="btn btn-success flex-fill py-2 fw-bold" onclick="saveBill('save')">
                             <i class="fa-solid fa-floppy-disk me-1"></i> SAVE BILL
                         </button>
-                        <button type="button" id="btn-save-print" class="btn btn-primary flex-fill py-2 fw-bold" onclick="saveBill(true)">
+                        <button type="button" id="btn-save-download" class="btn btn-info text-white flex-fill py-2 fw-bold" onclick="saveBill('download')">
+                            <i class="fa-solid fa-file-arrow-down me-1"></i> SAVE & DOWNLOAD PDF
+                        </button>
+                        <button type="button" id="btn-save-print" class="btn btn-primary flex-fill py-2 fw-bold" onclick="saveBill('print')">
                             <i class="fa-solid fa-print me-1"></i> SAVE & PRINT (F10)
                         </button>
                     </div>

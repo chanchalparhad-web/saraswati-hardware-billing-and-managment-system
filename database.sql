@@ -132,6 +132,7 @@ CREATE TABLE IF NOT EXISTS `sales` (
   `payment_status` ENUM('paid', 'partial', 'due') NOT NULL DEFAULT 'paid',
   `status` ENUM('completed', 'cancelled', 'returned') NOT NULL DEFAULT 'completed',
   `notes` TEXT DEFAULT NULL,
+  `bill_type` VARCHAR(20) DEFAULT 'gst',
   `user_id` INT DEFAULT NULL,
   `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (`customer_id`) REFERENCES `customers`(`id`) ON DELETE SET NULL

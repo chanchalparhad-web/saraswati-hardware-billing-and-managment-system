@@ -44,6 +44,13 @@ $gstin = get_setting('gstin', '27ABCDE1234F1Z5');
 $stateCode = substr($gstin, 0, 2) ?: '27';
 $footerNote = get_setting('footer_note', 'Thank you for your business! Visit again.');
 
+// Determine Bill Type (GST or Non-GST)
+$rawType = $_GET['type'] ?? ($sale['bill_type'] ?? 'gst');
+$billType = in_array(strtolower($rawType), ['non_gst', 'nongst', 'estimate', 'cash_memo']) ? 'non_gst' : 'gst';
+$isNonGst = ($billType === 'non_gst');
+$invoiceBadgeText = $isNonGst ? 'ESTIMATE / CASH MEMO' : 'TAX INVOICE';
+$pageDocTitle = ($isNonGst ? 'Cash Memo / Estimate - ' : 'Tax Invoice - ') . sanitize($sale['invoice_no']);
+
 // Number to Words function for Indian Rupee format
 if (!function_exists('convertNumberToIndianWords')) {
     function convertNumberToIndianWords($number) {
@@ -89,10 +96,12 @@ $amountInWords = convertNumberToIndianWords($sale['grand_total']);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tax Invoice - <?php echo sanitize($sale['invoice_no']); ?></title>
+    <title><?php echo $pageDocTitle; ?></title>
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- html2pdf for Direct Client-side PDF Generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         :root {
             --primary-dark: #0f172a;
@@ -509,11 +518,20 @@ $amountInWords = convertNumberToIndianWords($sale['grand_total']);
         <button onclick="window.print()" class="btn btn-primary">
             <i class="fa-solid fa-print"></i> PRINT INVOICE (A4)
         </button>
+        <button onclick="downloadInvoicePDF()" class="btn btn-primary" style="background:#0284c7;">
+            <i class="fa-solid fa-file-arrow-down"></i> DOWNLOAD PDF
+        </button>
         <button onclick="toggleThermalMode()" id="btn-thermal" class="btn btn-outline">
             <i class="fa-solid fa-receipt"></i> TOGGLE THERMAL SLIP
         </button>
     </div>
     <div class="actions-group">
+        <a href="?invoice_no=<?php echo urlencode($invoiceNo); ?>&type=gst" class="btn <?php echo !$isNonGst ? 'btn-primary' : 'btn-outline'; ?>" style="<?php echo !$isNonGst ? 'background:#0f172a;' : ''; ?>" title="View as GST Tax Invoice">
+            <i class="fa-solid fa-file-invoice"></i> GST Bill
+        </a>
+        <a href="?invoice_no=<?php echo urlencode($invoiceNo); ?>&type=non_gst" class="btn <?php echo $isNonGst ? 'btn-primary' : 'btn-outline'; ?>" style="<?php echo $isNonGst ? 'background:#0f172a;' : ''; ?>" title="View as Non-GST Estimate / Cash Memo">
+            <i class="fa-solid fa-file-lines"></i> Non-GST Bill
+        </a>
         <a href="<?php echo base_url('billing/new_bill.php'); ?>" class="btn btn-secondary">
             <i class="fa-solid fa-plus"></i> NEW BILL (POS)
         </a>
@@ -523,7 +541,7 @@ $amountInWords = convertNumberToIndianWords($sale['grand_total']);
     </div>
 </div>
 
-<!-- Professional Hardware Tax Invoice Sheet -->
+<!-- Professional Hardware Tax Invoice / Cash Memo Sheet -->
 <div class="invoice-sheet" id="invoiceSheet">
 
     <!-- Store Header -->
@@ -537,13 +555,24 @@ $amountInWords = convertNumberToIndianWords($sale['grand_total']);
             </div>
         </div>
         <div class="inv-badge-box">
-            <div class="tax-invoice-badge">TAX INVOICE</div>
-            <div>
-                <span class="gstin-pill">GSTIN: <?php echo sanitize($gstin); ?></span>
+            <div class="tax-invoice-badge" style="<?php echo $isNonGst ? 'background:#334155;' : ''; ?>">
+                <?php echo $invoiceBadgeText; ?>
             </div>
-            <div style="font-size: 11px; font-weight: 600; color: #475569;">
-                State: Maharashtra (Code: <?php echo sanitize($stateCode); ?>)
-            </div>
+            <?php if (!$isNonGst): ?>
+                <div>
+                    <span class="gstin-pill">GSTIN: <?php echo sanitize($gstin); ?></span>
+                </div>
+                <div style="font-size: 11px; font-weight: 600; color: #475569;">
+                    State: Maharashtra (Code: <?php echo sanitize($stateCode); ?>)
+                </div>
+            <?php else: ?>
+                <div>
+                    <span class="gstin-pill" style="background:#f8fafc; color:#64748b; border:1px dashed #cbd5e1;">RETAIL CASH MEMO</span>
+                </div>
+                <div style="font-size: 11px; font-weight: 600; color: #475569;">
+                    Type: Non-GST Retail Supply
+                </div>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -564,7 +593,7 @@ $amountInWords = convertNumberToIndianWords($sale['grand_total']);
                 <span class="meta-label">Delivery Site:</span>
                 <span class="meta-val"><?php echo sanitize($sale['customer_address'] ?? 'Counter Delivery / Local'); ?></span>
             </div>
-            <?php if (!empty($sale['customer_gst'])): ?>
+            <?php if (!$isNonGst && !empty($sale['customer_gst'])): ?>
                 <div class="meta-row">
                     <span class="meta-label">Buyer GSTIN:</span>
                     <span class="meta-val"><?php echo sanitize($sale['customer_gst']); ?></span>
@@ -574,9 +603,9 @@ $amountInWords = convertNumberToIndianWords($sale['grand_total']);
 
         <!-- Invoice Details -->
         <div class="meta-col">
-            <div class="meta-title"><i class="fa-solid fa-file-invoice me-1"></i> Invoice & Dispatch Details</div>
+            <div class="meta-title"><i class="fa-solid fa-file-invoice me-1"></i> Bill & Dispatch Details</div>
             <div class="meta-row">
-                <span class="meta-label">Invoice Number:</span>
+                <span class="meta-label"><?php echo $isNonGst ? 'Estimate / Memo No:' : 'Invoice Number:'; ?></span>
                 <span class="meta-val" style="font-family:'JetBrains Mono',monospace; font-size:13px;"><?php echo sanitize($sale['invoice_no']); ?></span>
             </div>
             <div class="meta-row">
@@ -601,56 +630,94 @@ $amountInWords = convertNumberToIndianWords($sale['grand_total']);
     </div>
 
     <!-- Itemized Hardware Grid -->
-    <table class="inv-table">
-        <thead>
-            <tr>
-                <th class="center" style="width: 32px;">#</th>
-                <th>Description of Hardware Goods</th>
-                <th class="center" style="width: 65px;">HSN</th>
-                <th class="center" style="width: 50px;">Qty</th>
-                <th class="center" style="width: 55px;">Unit</th>
-                <th class="num" style="width: 80px;">Rate (₹)</th>
-                <th class="num" style="width: 85px;">Taxable (₹)</th>
-                <th class="center" style="width: 65px;">GST %</th>
-                <th class="num" style="width: 75px;">GST (₹)</th>
-                <th class="num" style="width: 90px;">Total (₹)</th>
-            </tr>
-        </thead>
-        <tbody>
-            <?php 
-            $sr = 1;
-            $totalTaxable = 0;
-            $totalCgst = 0;
-            $totalSgst = 0;
-
-            foreach ($items as $item): 
-                $lineTotal = floatval($item['total_amount']);
-                $gstRate = floatval($item['tax_percent']);
-                $lineTaxable = $gstRate > 0 ? ($lineTotal / (1 + ($gstRate / 100))) : $lineTotal;
-                $lineTax = $lineTotal - $lineTaxable;
-                $totalTaxable += $lineTaxable;
-                $halfTax = $lineTax / 2;
-                $totalCgst += $halfTax;
-                $totalSgst += $halfTax;
-            ?>
+    <?php if (!$isNonGst): ?>
+        <!-- Full GST Table (10 Columns) -->
+        <table class="inv-table">
+            <thead>
                 <tr>
-                    <td class="center"><?php echo $sr++; ?></td>
-                    <td>
-                        <div class="item-name"><?php echo sanitize($item['product_name']); ?></div>
-                        <div class="item-sku">Item Code: <?php echo sanitize($item['product_code']); ?><?php echo !empty($item['brand']) ? ' | Brand: ' . sanitize($item['brand']) : ''; ?></div>
-                    </td>
-                    <td class="center" style="font-family:'JetBrains Mono',monospace; font-size:11px;">8481</td>
-                    <td class="center fw-bold"><?php echo $item['qty']; ?></td>
-                    <td class="center"><?php echo sanitize($item['unit'] ?? 'Pcs'); ?></td>
-                    <td class="num"><?php echo number_format($item['rate'], 2); ?></td>
-                    <td class="num"><?php echo number_format($lineTaxable, 2); ?></td>
-                    <td class="center"><?php echo $item['tax_percent']; ?>%</td>
-                    <td class="num"><?php echo number_format($lineTax, 2); ?></td>
-                    <td class="num" style="font-weight:700;"><?php echo number_format($lineTotal, 2); ?></td>
+                    <th class="center" style="width: 32px;">#</th>
+                    <th>Description of Hardware Goods</th>
+                    <th class="center" style="width: 65px;">HSN</th>
+                    <th class="center" style="width: 50px;">Qty</th>
+                    <th class="center" style="width: 55px;">Unit</th>
+                    <th class="num" style="width: 80px;">Rate (₹)</th>
+                    <th class="num" style="width: 85px;">Taxable (₹)</th>
+                    <th class="center" style="width: 65px;">GST %</th>
+                    <th class="num" style="width: 75px;">GST (₹)</th>
+                    <th class="num" style="width: 90px;">Total (₹)</th>
                 </tr>
-            <?php endforeach; ?>
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                <?php 
+                $sr = 1;
+                $totalTaxable = 0;
+                $totalCgst = 0;
+                $totalSgst = 0;
+
+                foreach ($items as $item): 
+                    $lineTotal = floatval($item['total_amount']);
+                    $gstRate = floatval($item['tax_percent']);
+                    $lineTaxable = $gstRate > 0 ? ($lineTotal / (1 + ($gstRate / 100))) : $lineTotal;
+                    $lineTax = $lineTotal - $lineTaxable;
+                    $totalTaxable += $lineTaxable;
+                    $halfTax = $lineTax / 2;
+                    $totalCgst += $halfTax;
+                    $totalSgst += $halfTax;
+                ?>
+                    <tr>
+                        <td class="center"><?php echo $sr++; ?></td>
+                        <td>
+                            <div class="item-name"><?php echo sanitize($item['product_name']); ?></div>
+                            <div class="item-sku">Item Code: <?php echo sanitize($item['product_code']); ?><?php echo !empty($item['brand']) ? ' | Brand: ' . sanitize($item['brand']) : ''; ?></div>
+                        </td>
+                        <td class="center" style="font-family:'JetBrains Mono',monospace; font-size:11px;">8481</td>
+                        <td class="center fw-bold"><?php echo $item['qty']; ?></td>
+                        <td class="center"><?php echo sanitize($item['unit'] ?? 'Pcs'); ?></td>
+                        <td class="num"><?php echo number_format($item['rate'], 2); ?></td>
+                        <td class="num"><?php echo number_format($lineTaxable, 2); ?></td>
+                        <td class="center"><?php echo $item['tax_percent']; ?>%</td>
+                        <td class="num"><?php echo number_format($lineTax, 2); ?></td>
+                        <td class="num" style="font-weight:700;"><?php echo number_format($lineTotal, 2); ?></td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    <?php else: ?>
+        <!-- Simplified Non-GST Table (6 Columns) -->
+        <table class="inv-table">
+            <thead>
+                <tr>
+                    <th class="center" style="width: 38px;">#</th>
+                    <th>Description of Hardware Goods</th>
+                    <th class="center" style="width: 70px;">Qty</th>
+                    <th class="center" style="width: 70px;">Unit</th>
+                    <th class="num" style="width: 110px;">Rate (₹)</th>
+                    <th class="num" style="width: 120px;">Total (₹)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php 
+                $sr = 1;
+                $grossItemsTotal = 0;
+                foreach ($items as $item): 
+                    $lineTotal = floatval($item['total_amount']);
+                    $grossItemsTotal += $lineTotal;
+                ?>
+                    <tr>
+                        <td class="center"><?php echo $sr++; ?></td>
+                        <td>
+                            <div class="item-name"><?php echo sanitize($item['product_name']); ?></div>
+                            <div class="item-sku">Item Code: <?php echo sanitize($item['product_code']); ?><?php echo !empty($item['brand']) ? ' | Brand: ' . sanitize($item['brand']) : ''; ?></div>
+                        </td>
+                        <td class="center fw-bold"><?php echo $item['qty']; ?></td>
+                        <td class="center"><?php echo sanitize($item['unit'] ?? 'Pcs'); ?></td>
+                        <td class="num"><?php echo number_format($item['rate'], 2); ?></td>
+                        <td class="num" style="font-weight:700;"><?php echo number_format($lineTotal, 2); ?></td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    <?php endif; ?>
 
     <!-- Calculations & Summary Grid -->
     <div class="inv-summary-grid">
@@ -661,35 +728,55 @@ $amountInWords = convertNumberToIndianWords($sale['grand_total']);
                 <div class="amount-words-val"><?php echo sanitize($amountInWords); ?></div>
             </div>
 
-            <!-- Tax Split Summary -->
-            <div class="p-2 border rounded" style="background:#fafafa; font-size:11px;">
-                <div class="d-flex justify-content-between mb-1">
-                    <span>CGST Total:</span>
-                    <span class="fw-bold">₹<?php echo number_format($totalCgst, 2); ?></span>
+            <?php if (!$isNonGst): ?>
+                <!-- GST Tax Split Summary -->
+                <div class="p-2 border rounded" style="background:#fafafa; font-size:11px;">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>CGST Total:</span>
+                        <span class="fw-bold">₹<?php echo number_format($totalCgst, 2); ?></span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>SGST Total:</span>
+                        <span class="fw-bold">₹<?php echo number_format($totalSgst, 2); ?></span>
+                    </div>
                 </div>
-                <div class="d-flex justify-content-between">
-                    <span>SGST Total:</span>
-                    <span class="fw-bold">₹<?php echo number_format($totalSgst, 2); ?></span>
+            <?php else: ?>
+                <div class="p-2 border rounded text-muted" style="background:#f8fafc; font-size:11px;">
+                    <i class="fa-solid fa-circle-check text-success me-1"></i> Non-GST Retail Supply / Cash Memo. No tax charged.
                 </div>
-            </div>
+            <?php endif; ?>
         </div>
 
         <div>
             <table class="totals-table">
-                <tr>
-                    <td>Taxable Amount:</td>
-                    <td>₹<?php echo number_format($sale['total_amount'], 2); ?></td>
-                </tr>
-                <?php if ($sale['discount_amount'] > 0): ?>
+                <?php if (!$isNonGst): ?>
                     <tr>
-                        <td style="color: #dc2626;">Discount:</td>
-                        <td style="color: #dc2626;">- ₹<?php echo number_format($sale['discount_amount'], 2); ?></td>
+                        <td>Taxable Amount:</td>
+                        <td>₹<?php echo number_format($sale['total_amount'], 2); ?></td>
                     </tr>
+                    <?php if ($sale['discount_amount'] > 0): ?>
+                        <tr>
+                            <td style="color: #dc2626;">Discount:</td>
+                            <td style="color: #dc2626;">- ₹<?php echo number_format($sale['discount_amount'], 2); ?></td>
+                        </tr>
+                    <?php endif; ?>
+                    <tr>
+                        <td>Total Tax (GST):</td>
+                        <td>₹<?php echo number_format($sale['tax_amount'], 2); ?></td>
+                    </tr>
+                <?php else: ?>
+                    <tr>
+                        <td>Items Subtotal:</td>
+                        <td>₹<?php echo number_format($sale['grand_total'] + $sale['discount_amount'], 2); ?></td>
+                    </tr>
+                    <?php if ($sale['discount_amount'] > 0): ?>
+                        <tr>
+                            <td style="color: #dc2626;">Discount:</td>
+                            <td style="color: #dc2626;">- ₹<?php echo number_format($sale['discount_amount'], 2); ?></td>
+                        </tr>
+                    <?php endif; ?>
                 <?php endif; ?>
-                <tr>
-                    <td>Total Tax (GST):</td>
-                    <td>₹<?php echo number_format($sale['tax_amount'], 2); ?></td>
-                </tr>
+
                 <tr class="grand-total-row">
                     <td>GRAND TOTAL:</td>
                     <td>₹<?php echo number_format($sale['grand_total'], 2); ?></td>
@@ -728,7 +815,7 @@ $amountInWords = convertNumberToIndianWords($sale['grand_total']);
     </div>
 
     <div class="footer-bottom-note">
-        <p><?php echo sanitize($footerNote); ?> | This is a Computer Generated Hardware Tax Invoice.</p>
+        <p><?php echo sanitize($footerNote); ?> | This is a Computer Generated Hardware <?php echo $isNonGst ? 'Estimate / Cash Memo' : 'Tax Invoice'; ?>.</p>
     </div>
 
 </div>
@@ -738,11 +825,46 @@ function toggleThermalMode() {
     document.body.classList.toggle('thermal-mode');
     const btn = document.getElementById('btn-thermal');
     if (document.body.classList.contains('thermal-mode')) {
-        btn.innerHTML = '<i class="fa-solid fa-file-invoice"></i> SWITCH TO A4 TAX INVOICE';
+        btn.innerHTML = '<i class="fa-solid fa-file-invoice"></i> SWITCH TO A4 SHEET';
     } else {
         btn.innerHTML = '<i class="fa-solid fa-receipt"></i> TOGGLE THERMAL SLIP';
     }
 }
+
+function downloadInvoicePDF() {
+    const element = document.getElementById('invoiceSheet');
+    const invoiceNumber = '<?php echo sanitize($sale["invoice_no"]); ?>';
+    const isNonGst = <?php echo $isNonGst ? 'true' : 'false'; ?>;
+    const prefix = isNonGst ? 'Estimate_' : 'Invoice_';
+    const opt = {
+        margin:       [4, 4, 4, 4],
+        filename:     `${prefix}${invoiceNumber}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true, logging: false },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+    
+    return html2pdf().set(opt).from(element).save();
+}
+
+// Auto-trigger print and/or download if requested in URL
+window.addEventListener('load', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const shouldDownload = urlParams.get('download') === '1';
+    const shouldPrint = urlParams.get('print') === '1';
+
+    if (shouldDownload) {
+        setTimeout(function() {
+            downloadInvoicePDF();
+        }, 500);
+    }
+
+    if (shouldPrint) {
+        setTimeout(function() {
+            window.print();
+        }, 1000);
+    }
+});
 </script>
 
 </body>

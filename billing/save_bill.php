@@ -58,6 +58,18 @@ try {
         }
     }
 
+    // Ensure bill_type column exists in sales table (safe for both SQLite & MySQL)
+    try {
+        $db->exec("ALTER TABLE sales ADD COLUMN bill_type VARCHAR(20) DEFAULT 'gst'");
+    } catch (Exception $colEx) {
+        // Column already exists or table locked
+    }
+
+    $billType = sanitize($data['bill_type'] ?? 'gst');
+    if ($billType !== 'non_gst') {
+        $billType = 'gst';
+    }
+
     // Generate Invoice Number
     $invoicePrefix = get_setting('invoice_prefix', 'INV-');
     $datePart = date('Ym');
@@ -67,7 +79,7 @@ try {
     $countSales = $stmtSeq->fetchColumn() + 1;
     $invoiceNo = sprintf("%s%s-%04d", $invoicePrefix, $datePart, $countSales);
 
-    // Calculate Bill Totals (GST Inclusive)
+    // Calculate Bill Totals (GST Inclusive or Non-GST)
     $totalGross = 0;
     $rawSubtotal = 0;
     $totalTax = 0;
@@ -75,7 +87,7 @@ try {
     foreach ($items as $item) {
         $qty = max(1, intval($item['qty'] ?? 1));
         $price = floatval($item['price'] ?? 0);
-        $gstRate = floatval($item['gst_rate'] ?? 18);
+        $gstRate = ($billType === 'non_gst') ? 0.0 : floatval($item['gst_rate'] ?? 18);
 
         $lineTotal = $qty * $price;
         $lineTaxable = $gstRate > 0 ? ($lineTotal / (1 + ($gstRate / 100))) : $lineTotal;
@@ -108,15 +120,17 @@ try {
     $dueAmount = max(0, $grandTotal - $paidAmount);
     $paymentStatus = ($dueAmount <= 0) ? 'paid' : (($paidAmount > 0) ? 'partial' : 'due');
 
-    // Insert Sale Record
+    // Insert Sale Record (with bill_type)
+    $saleNotes = ($billType === 'non_gst') ? 'Non-GST Retail Bill / Cash Memo' : 'GST Tax Invoice';
     $stmtSale = $db->prepare("
         INSERT INTO sales 
-        (invoice_no, customer_id, sale_type, sale_date, total_amount, discount_amount, tax_amount, grand_total, paid_amount, due_amount, payment_mode, payment_status, status, user_id)
-        VALUES (?, ?, 'offline', CURRENT_TIMESTAMP, ?, ?, ?, ?, ?, ?, ?, ?, 'completed', ?)
+        (invoice_no, customer_id, sale_type, bill_type, sale_date, total_amount, discount_amount, tax_amount, grand_total, paid_amount, due_amount, payment_mode, payment_status, status, notes, user_id)
+        VALUES (?, ?, 'offline', ?, CURRENT_TIMESTAMP, ?, ?, ?, ?, ?, ?, ?, ?, 'completed', ?, ?)
     ");
     $stmtSale->execute([
         $invoiceNo,
         $customerId,
+        $billType,
         $rawSubtotal,
         $discountAmount,
         $totalTax,
@@ -125,6 +139,7 @@ try {
         $dueAmount,
         $paymentMode,
         $paymentStatus,
+        $saleNotes,
         $user['id']
     ]);
 
@@ -152,7 +167,7 @@ try {
         $productName = sanitize($item['name'] ?? 'Hardware Item');
         $qty = max(1, intval($item['qty'] ?? 1));
         $rate = floatval($item['price'] ?? 0);
-        $gstRate = floatval($item['gst_rate'] ?? 18);
+        $gstRate = ($billType === 'non_gst') ? 0.0 : floatval($item['gst_rate'] ?? 18);
 
         // If product is newly added without catalog ID, persist it to products catalog table!
         if ($productId <= 0) {
@@ -218,6 +233,7 @@ try {
     json_response([
         'success' => true,
         'invoice_no' => $invoiceNo,
+        'bill_type' => $billType,
         'grand_total' => $grandTotal,
         'message' => 'Sale recorded successfully!'
     ]);

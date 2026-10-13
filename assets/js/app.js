@@ -22,6 +22,26 @@ document.addEventListener('DOMContentLoaded', function () {
     const totalItemsEl = document.getElementById('pos-total-items');
 
     let cart = [];
+    let currentBillType = 'gst';
+
+    // Toggle GST / Non-GST Bill Mode
+    window.setBillType = function (type) {
+        currentBillType = (type === 'non_gst') ? 'non_gst' : 'gst';
+        const indicator = document.getElementById('bill-mode-indicator');
+        const subtotalLabel = document.getElementById('pos-subtotal-label');
+        const taxLabel = document.getElementById('pos-tax-label');
+
+        if (currentBillType === 'non_gst') {
+            if (indicator) indicator.innerHTML = '📋 Non-GST Bill (Estimate / Cash Memo)';
+            if (subtotalLabel) subtotalLabel.textContent = 'Subtotal:';
+            if (taxLabel) taxLabel.textContent = 'Tax (0% Non-GST):';
+        } else {
+            if (indicator) indicator.innerHTML = '🧾 GST Bill (Tax Invoice)';
+            if (subtotalLabel) subtotalLabel.textContent = 'Taxable Subtotal:';
+            if (taxLabel) taxLabel.textContent = 'GST Tax (Included):';
+        }
+        renderPOSCart();
+    };
 
     // Initialize POS Keyboard Shortcuts if POS table exists
     if (posCartTable) {
@@ -155,13 +175,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
         cart.forEach((item, index) => {
             const lineTotal = item.qty * item.price;
-            const gstRate = parseFloat(item.gst_rate) || 0;
+            const gstRate = (currentBillType === 'non_gst') ? 0 : (parseFloat(item.gst_rate) || 0);
             const lineTaxable = gstRate > 0 ? (lineTotal / (1 + (gstRate / 100))) : lineTotal;
             const lineTax = lineTotal - lineTaxable;
 
             totalGross += lineTotal;
             taxableSubtotal += lineTaxable;
             totalTax += lineTax;
+
+            const gstBadge = (currentBillType === 'non_gst')
+                ? `<span class="badge bg-secondary">0% (Non-GST)</span>`
+                : `<span class="badge bg-light text-dark border">${item.gst_rate}% (Incl)</span>`;
 
             const tr = document.createElement('tr');
             tr.innerHTML = `
@@ -177,7 +201,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     </div>
                 </td>
                 <td class="align-middle text-end">₹${item.price.toFixed(2)}</td>
-                <td class="align-middle text-center"><span class="badge bg-light text-dark border">${item.gst_rate}% (Incl)</span></td>
+                <td class="align-middle text-center">${gstBadge}</td>
                 <td class="align-middle text-end fw-bold">₹${lineTotal.toFixed(2)}</td>
                 <td class="align-middle text-center">
                     <button class="btn btn-sm btn-link text-danger" onclick="removeFromCart(${index})">
@@ -251,10 +275,18 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     // Save Bill AJAX
-    window.saveBill = function (shouldPrint = false) {
+    window.saveBill = function (action = 'save') {
         if (cart.length === 0) {
             alert('Please add at least one product to the bill!');
             return;
+        }
+
+        // action can be 'save', 'print', 'download', or boolean (true -> 'print', false -> 'save')
+        let mode = 'save';
+        if (action === true || action === 'print') {
+            mode = 'print';
+        } else if (action === 'download') {
+            mode = 'download';
         }
 
         const customerNameInput = document.getElementById('pos-customer-name');
@@ -277,6 +309,7 @@ document.addEventListener('DOMContentLoaded', function () {
             customer_name: customerName,
             customer_mobile: customerMobile,
             payment_mode: paymentMode,
+            bill_type: currentBillType,
             discount: discountVal,
             discount_type: discountType,
             paid_amount: paidAmount,
@@ -285,8 +318,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const saveBtn = document.getElementById('btn-save-bill');
         const savePrintBtn = document.getElementById('btn-save-print');
+        const saveDownloadBtn = document.getElementById('btn-save-download');
         if (saveBtn) saveBtn.disabled = true;
         if (savePrintBtn) savePrintBtn.disabled = true;
+        if (saveDownloadBtn) saveDownloadBtn.disabled = true;
 
         const saveBillUrl = (window.APP_BASE_URL ? window.APP_BASE_URL + '/billing/save_bill.php' : '../billing/save_bill.php');
 
@@ -301,16 +336,26 @@ document.addEventListener('DOMContentLoaded', function () {
         .then(data => {
             if (saveBtn) saveBtn.disabled = false;
             if (savePrintBtn) savePrintBtn.disabled = false;
+            if (saveDownloadBtn) saveDownloadBtn.disabled = false;
 
             if (data.success) {
-                alert('Bill Generated Successfully! Invoice: ' + data.invoice_no);
-                if (shouldPrint) {
-                    const printUrl = (window.APP_BASE_URL ? window.APP_BASE_URL + `/billing/print_invoice.php?invoice_no=${data.invoice_no}` : `../billing/print_invoice.php?invoice_no=${data.invoice_no}`);
-                    window.open(printUrl, '_blank', 'width=400,height=600');
+                const printBaseUrl = (window.APP_BASE_URL ? window.APP_BASE_URL + `/billing/print_invoice.php` : `../billing/print_invoice.php`);
+                const typeParam = `type=${currentBillType}`;
+
+                if (mode === 'print') {
+                    // Prints bill AND automatically triggers PDF download as requested
+                    window.open(`${printBaseUrl}?invoice_no=${data.invoice_no}&${typeParam}&print=1&download=1`, '_blank');
+                } else if (mode === 'download') {
+                    // Automatically downloads PDF bill
+                    window.open(`${printBaseUrl}?invoice_no=${data.invoice_no}&${typeParam}&download=1`, '_blank');
+                } else {
+                    alert('Bill Generated Successfully! Invoice: ' + data.invoice_no);
                 }
+
                 resetPOSCart();
-                // Optionally reload window or refresh inventory
-                location.reload();
+                setTimeout(() => {
+                    location.reload();
+                }, 800);
             } else {
                 alert('Error creating bill: ' + (data.message || 'Unknown error'));
             }
@@ -318,6 +363,7 @@ document.addEventListener('DOMContentLoaded', function () {
         .catch(err => {
             if (saveBtn) saveBtn.disabled = false;
             if (savePrintBtn) savePrintBtn.disabled = false;
+            if (saveDownloadBtn) saveDownloadBtn.disabled = false;
             console.error('POS Save Error:', err);
             alert('Server error occurred while saving bill.');
         });
