@@ -24,8 +24,16 @@ $user = current_user();
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    <!-- Custom CSS -->
+    <!-- Custom CSS (Inline injection guarantees 100% styling on Vercel without CDN 404s) -->
+    <?php 
+    $cssFile = __DIR__ . '/../assets/css/style.css';
+    if (file_exists($cssFile)): ?>
+    <style>
+    <?php echo file_get_contents($cssFile); ?>
+    </style>
+    <?php else: ?>
     <link rel="stylesheet" href="<?php echo base_url('assets/css/style.css'); ?>">
+    <?php endif; ?>
 
     <!-- Base URL for Frontend AJAX / Fetch -->
     <script>
