@@ -475,7 +475,7 @@ function init_sqlite_db($pdo) {
     $pdo->exec("
     INSERT OR IGNORE INTO users (id, username, email, password, role, name, phone) VALUES
     (1, 'admin', 'admin@hardwarestore.com', '$passHash', 'admin', 'Store Owner (Admin)', '9876543210'),
-    (2, 'cashier', 'cashier@hardwarestore.com', '$staffHash', 'staff', 'Rajesh Cashier', '9876543211'),
+    (2, 'cashier', 'cashier@hardwarestore.com', '$staffHash', 'staff', 'Parmeshwar Cashier', '9876543211'),
     (3, 'customer', 'customer@gmail.com', '$custHash', 'customer', 'Amit Verma', '9876543212');
 
     INSERT OR IGNORE INTO categories (id, name, description) VALUES
@@ -489,27 +489,17 @@ function init_sqlite_db($pdo) {
     (8, 'Construction Materials', 'Cement, waterproofing, adhesive, putty, sealants'),
     (9, 'Hardware Accessories', 'Hinges, door locks, handles, drawer slides, latches');
 
-    INSERT OR IGNORE INTO suppliers (id, supplier_name, company_name, mobile, email, address, gst_number, opening_balance, current_balance) VALUES
-    (1, 'Suresh Patel', 'Supreme Plumbing Supplies Pvt Ltd', '9820011223', 'sales@supreme.com', 'Plot 45, GIDC Industrial Estate, Ahmedabad', '24AAACS1234F1Z1', 0.00, 72400.00),
-    (2, 'Vikas Gupta', 'Asian Paints Authorized Distr', '9811122334', 'orders@apdistributors.com', 'Building B, Industrial Area, Phase 2, Mumbai', '27AABCA5678G2Z4', 0.00, 18500.00),
-    (3, 'Ramesh Kumar', 'Bosch & Stanley Power Tools Depot', '9833344556', 'ramesh@powertools.in', '78 Hardware Market, Delhi', '07AAACB9101H3Z9', 0.00, 0.00);
-
-    INSERT OR IGNORE INTO customers (id, name, mobile, email, address, gst_number, credit_limit, outstanding_amount) VALUES
-    (1, 'Walk-in Customer', '0000000000', 'walkin@store.com', 'Local Store Direct', NULL, 0.00, 0.00);
-
-    INSERT OR IGNORE INTO expenses (id, category, description, amount, expense_date, payment_method, notes) VALUES
-    (1, 'Shop Rent', 'Monthly shop premises rent for October', 12000.00, DATE('now'), 'bank_transfer', 'Owner bank account transfer'),
-    (2, 'Electricity', 'Electricity bill payment for shop lighting and computer', 2850.00, DATE('now'), 'upi', 'Torrent power online bill'),
-    (3, 'Transportation', 'Tempo freight charges for PVC pipes delivery from GIDC', 1400.00, DATE('now'), 'cash', 'Local transport auto drivers payment');
-
+    
+   
+    
     INSERT OR IGNORE INTO settings (id, setting_key, setting_value) VALUES
     (1, 'shop_name', 'Saraswati Hardware'),
-    (2, 'shop_address', '123 Main Hardware Market, Station Road, City'),
-    (3, 'shop_phone', '+91 98765 43210'),
+    (2, 'shop_address', ' Karodi, Chhatrapati Sambhaji Nagar, Maharashtra 431136'),
+    (3, 'shop_phone', '+91  77739 57946'),
     (4, 'shop_email', 'contact@abchardware.com'),
-    (5, 'gstin', '27ABCDE1234F1Z5'),
+    (5, 'gstin', '27B0EPG0856F1Z5'),
     (6, 'currency', '₹'),
-    (7, 'invoice_prefix', 'INV-'),
+    (7, 'invoice_prefix', 'BILL NO:-'),
     (8, 'thermal_printer_width', '80mm'),
     (9, 'footer_note', 'Thank you for shopping with us! Visit again.');
     ");
