@@ -52,7 +52,7 @@ $categories = $catStmt->fetchAll();
                         <div class="col-md-4">
                             <label class="form-label small fw-bold mb-1 text-secondary">Payment Mode</label>
                             <select id="pos-payment-mode" class="form-select form-select-sm fw-bold bg-light">
-                                <option value="upi" selected>📱 UPI / QR💵 Cash (F9)</option>
+                                <option value="upi" selected>📱 UPI (F9)</option>
                                 <option value="cash">💵 Cash (F8)</option>
                                 <option value="card">💳 Card</option>
                                 <option value="credit">📝 Credit (Udhaar)</option>
