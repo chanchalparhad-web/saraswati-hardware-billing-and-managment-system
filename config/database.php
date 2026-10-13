@@ -3,24 +3,65 @@
 // HARDWARE STORE MANAGEMENT SYSTEM - DATABASE & CONFIGURATION
 // ============================================================
 
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
+// Configure session save path for serverless environment
+if (function_exists('sys_get_temp_dir')) {
+    $tempDir = sys_get_temp_dir();
+    if ($tempDir && is_writable($tempDir)) {
+        @ini_set('session.save_path', $tempDir);
+    }
 }
 
-// Database Credentials (with Environment Variable support for Vercel/Cloud deployment)
-define('DB_HOST', getenv('DB_HOST') ?: 'localhost');
-define('DB_PORT', getenv('DB_PORT') ?: '3306');
-define('DB_NAME', getenv('DB_NAME') ?: 'hardware_store_db');
-define('DB_USER', getenv('DB_USER') ?: 'root');
-define('DB_PASS', getenv('DB_PASS') !== false ? getenv('DB_PASS') : '');
+if (session_status() === PHP_SESSION_NONE) {
+    $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || 
+               (($_SERVER['SERVER_PORT'] ?? '') == 443) || 
+               (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+    session_set_cookie_params([
+        'lifetime' => 86400 * 7,
+        'path' => '/',
+        'secure' => $isHttps,
+        'httponly' => true,
+        'samesite' => 'Lax'
+    ]);
+    @session_start();
+}
+
+// Restore session from HMAC-signed auth cookie if serverless container has recycled
+restore_session_from_cookie();
+
+// Database Credentials & Connection string parsing (DATABASE_URL / MYSQL_URL for Vercel/Cloud deployment)
+$dbUrl = getenv('DATABASE_URL') ?: getenv('MYSQL_URL');
+$parsedHost = null; $parsedPort = null; $parsedName = null; $parsedUser = null; $parsedPass = null;
+if ($dbUrl) {
+    $dbParts = parse_url($dbUrl);
+    if ($dbParts) {
+        $parsedHost = $dbParts['host'] ?? null;
+        $parsedPort = isset($dbParts['port']) ? (string)$dbParts['port'] : null;
+        $parsedUser = $dbParts['user'] ?? null;
+        $parsedPass = $dbParts['pass'] ?? null;
+        $parsedName = isset($dbParts['path']) ? ltrim($dbParts['path'], '/') : null;
+    }
+}
+
+if (!defined('DB_HOST')) define('DB_HOST', getenv('DB_HOST') ?: ($parsedHost ?: 'localhost'));
+if (!defined('DB_PORT')) define('DB_PORT', getenv('DB_PORT') ?: ($parsedPort ?: '3306'));
+if (!defined('DB_NAME')) define('DB_NAME', getenv('DB_NAME') ?: ($parsedName ?: 'hardware_store_db'));
+if (!defined('DB_USER')) define('DB_USER', getenv('DB_USER') ?: ($parsedUser ?: 'root'));
+if (!defined('DB_PASS')) define('DB_PASS', getenv('DB_PASS') !== false ? getenv('DB_PASS') : ($parsedPass !== null ? $parsedPass : ''));
 
 // Base URL helper
 function base_url($path = '') {
+    if (getenv('APP_URL')) {
+        $base = rtrim(getenv('APP_URL'), '/');
+        return $base . '/' . ltrim($path, '/');
+    }
+
     $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || 
                (($_SERVER['SERVER_PORT'] ?? '') == 443) || 
                (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
     $protocol = $isHttps ? "https://" : "http://";
-    $host = $_SERVER['HTTP_HOST'] ?? 'localhost:8000';
+    
+    $rawHost = $_SERVER['HTTP_X_FORWARDED_HOST'] ?? $_SERVER['HTTP_HOST'] ?? 'localhost:8000';
+    $host = trim(explode(',', $rawHost)[0]);
     
     // Calculate relative subfolder path if under XAMPP htdocs or Vercel api/
     $scriptDir = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? ''));
@@ -34,12 +75,21 @@ function base_url($path = '') {
 
 /**
  * Returns PDO Database Instance.
- * Connects to MySQL first; falls back gracefully to SQLite if MySQL is unavailable.
+ * Connects to MySQL if configured/available; falls back gracefully to SQLite on Vercel/local.
  */
 function get_db() {
     static $pdo = null;
 
     if ($pdo !== null) {
+        return $pdo;
+    }
+
+    $isVercel = !empty(getenv('VERCEL')) || !empty(getenv('NOW_REGION')) || !empty(getenv('VERCEL_ENV'));
+    $isRemoteMysql = (DB_HOST !== 'localhost' && DB_HOST !== '127.0.0.1' && !empty(DB_HOST));
+
+    // If running on Vercel and no external MySQL is configured, use SQLite immediately without socket timeout
+    if ($isVercel && !$isRemoteMysql) {
+        $pdo = get_sqlite_db();
         return $pdo;
     }
 
@@ -50,38 +100,97 @@ function get_db() {
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             PDO::ATTR_EMULATE_PREPARES => false,
+            PDO::ATTR_TIMEOUT => 4,
         ];
+        if (defined('PDO::MYSQL_ATTR_SSL_CA')) {
+            $options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
+        }
         $pdo = new PDO($dsn, DB_USER, DB_PASS, $options);
+
+        // Auto-initialize MySQL schema if tables don't exist yet
+        try {
+            $pdo->query("SELECT 1 FROM users LIMIT 1");
+        } catch (Exception $e) {
+            init_mysql_db($pdo);
+        }
+
     } catch (PDOException $e) {
         // Fallback to SQLite if MySQL Server is not accessible
-        $sqliteFile = __DIR__ . '/../hardware_store.sqlite';
-        $writableSqlite = $sqliteFile;
-
-        // Vercel serverless environment has read-only root directory; copy to /tmp if writable
-        if (function_exists('sys_get_temp_dir')) {
-            $tmpDir = sys_get_temp_dir();
-            if ($tmpDir && is_writable($tmpDir)) {
-                $tmpSqlite = rtrim($tmpDir, '/\\') . '/hardware_store.sqlite';
-                if (!file_exists($tmpSqlite) && file_exists($sqliteFile)) {
-                    @copy($sqliteFile, $tmpSqlite);
-                }
-                if (file_exists($tmpSqlite) || is_writable(dirname($tmpSqlite))) {
-                    $writableSqlite = $tmpSqlite;
-                }
-            }
-        }
-
-        $isNewSqlite = !file_exists($writableSqlite);
-        $pdo = new PDO("sqlite:" . $writableSqlite);
-        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-        $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
-
-        if ($isNewSqlite) {
-            init_sqlite_db($pdo);
-        }
+        $pdo = get_sqlite_db();
     }
 
     return $pdo;
+}
+
+/**
+ * Returns SQLite PDO instance with /tmp write support on Vercel.
+ */
+function get_sqlite_db() {
+    $sqliteFile = __DIR__ . '/../hardware_store.sqlite';
+    $writableSqlite = $sqliteFile;
+
+    // Vercel serverless environment has read-only root directory; copy to /tmp if writable
+    if (function_exists('sys_get_temp_dir')) {
+        $tmpDir = sys_get_temp_dir();
+        if ($tmpDir && is_writable($tmpDir)) {
+            $tmpSqlite = rtrim($tmpDir, '/\\') . '/hardware_store.sqlite';
+            if (!file_exists($tmpSqlite)) {
+                if (file_exists($sqliteFile) && filesize($sqliteFile) > 0) {
+                    @copy($sqliteFile, $tmpSqlite);
+                }
+            }
+            $writableSqlite = $tmpSqlite;
+        }
+    }
+
+    $pdo = new PDO("sqlite:" . $writableSqlite);
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+
+    // Verify if tables exist
+    $needsInit = false;
+    try {
+        $pdo->query("SELECT 1 FROM users LIMIT 1");
+    } catch (Exception $e) {
+        $needsInit = true;
+    }
+
+    if ($needsInit) {
+        init_sqlite_db($pdo);
+    }
+
+    return $pdo;
+}
+
+/**
+ * Helper to initialize MySQL schema from database.sql if needed
+ */
+function init_mysql_db($pdo) {
+    $sqlFile = __DIR__ . '/../database.sql';
+    if (!file_exists($sqlFile)) {
+        return;
+    }
+    $sqlContent = file_get_contents($sqlFile);
+    $lines = explode("\n", $sqlContent);
+    $cleanedSql = '';
+    foreach ($lines as $line) {
+        $trimmed = trim($line);
+        if (strpos($trimmed, '--') === 0 || strpos($trimmed, '/*') === 0) continue;
+        if (stripos($trimmed, 'CREATE DATABASE') === 0) continue;
+        if (stripos($trimmed, 'USE ') === 0) continue;
+        $cleanedSql .= $line . "\n";
+    }
+
+    $statements = array_filter(array_map('trim', explode(';', $cleanedSql)));
+    foreach ($statements as $stmt) {
+        if (!empty($stmt)) {
+            try {
+                $pdo->exec($stmt);
+            } catch (Exception $e) {
+                // Ignore individual query errors
+            }
+        }
+    }
 }
 
 /**
@@ -429,4 +538,72 @@ function get_flash() {
         return $flash;
     }
     return null;
+}
+
+// Serverless Authentication Cookie Helpers (HMAC-SHA256 Signed)
+function get_app_secret() {
+    return getenv('APP_SECRET') ?: 'hw-store-jwt-secure-salt-vercel-2026';
+}
+
+function set_auth_cookie($user) {
+    $data = [
+        'id'       => $user['id'] ?? null,
+        'username' => $user['username'] ?? '',
+        'name'     => $user['name'] ?? '',
+        'role'     => $user['role'] ?? 'staff',
+        'email'    => $user['email'] ?? '',
+        'time'     => time()
+    ];
+    $json = json_encode($data);
+    $sig = hash_hmac('sha256', $json, get_app_secret());
+    $token = base64_encode($sig . '::' . $json);
+    $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || 
+               (($_SERVER['SERVER_PORT'] ?? '') == 443) || 
+               (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+    setcookie('hw_auth_token', $token, [
+        'expires'  => time() + (86400 * 7),
+        'path'     => '/',
+        'secure'   => $isHttps,
+        'httponly' => true,
+        'samesite' => 'Lax'
+    ]);
+}
+
+function clear_auth_cookie() {
+    $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || 
+               (($_SERVER['SERVER_PORT'] ?? '') == 443) || 
+               (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+    setcookie('hw_auth_token', '', [
+        'expires'  => time() - 3600,
+        'path'     => '/',
+        'secure'   => $isHttps,
+        'httponly' => true,
+        'samesite' => 'Lax'
+    ]);
+    unset($_COOKIE['hw_auth_token']);
+}
+
+function restore_session_from_cookie() {
+    if (!empty($_SESSION['user_id'])) {
+        return;
+    }
+    if (empty($_COOKIE['hw_auth_token'])) {
+        return;
+    }
+    $raw = base64_decode($_COOKIE['hw_auth_token'], true);
+    if (!$raw || strpos($raw, '::') === false) {
+        return;
+    }
+    list($sig, $json) = explode('::', $raw, 2);
+    $expectedSig = hash_hmac('sha256', $json, get_app_secret());
+    if (hash_equals($expectedSig, $sig)) {
+        $userData = json_decode($json, true);
+        if ($userData && !empty($userData['id'])) {
+            $_SESSION['user_id']  = $userData['id'];
+            $_SESSION['username'] = $userData['username'] ?? '';
+            $_SESSION['name']     = $userData['name'] ?? '';
+            $_SESSION['role']     = $userData['role'] ?? 'staff';
+            $_SESSION['email']    = $userData['email'] ?? '';
+        }
+    }
 }

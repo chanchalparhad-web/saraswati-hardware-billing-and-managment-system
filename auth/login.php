@@ -17,12 +17,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $user = $stmt->fetch();
 
         if ($user && password_verify($password, $user['password'])) {
-            // Set Session
+            // Set Session & Persistent Serverless Auth Cookie
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['username'] = $user['username'];
             $_SESSION['name'] = $user['name'];
             $_SESSION['role'] = $user['role'];
             $_SESSION['email'] = $user['email'];
+            set_auth_cookie($user);
 
             // Redirect based on role
             if ($user['role'] === 'admin' || $user['role'] === 'staff') {

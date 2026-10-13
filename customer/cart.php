@@ -141,7 +141,10 @@ function placeOrder() {
         return;
     }
 
-    fetch('checkout.php', {
+    const checkoutUrl = (window.APP_BASE_URL ? window.APP_BASE_URL + '/customer/checkout.php' : 'checkout.php');
+    const ordersUrl = (window.APP_BASE_URL ? window.APP_BASE_URL + '/customer/orders.php' : 'orders.php');
+
+    fetch(checkoutUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ items: cart, address: address })
@@ -151,7 +154,7 @@ function placeOrder() {
         if (data.success) {
             alert('Order Placed Successfully! Order No: ' + data.order_no);
             localStorage.removeItem('customer_cart');
-            window.location.href = 'orders.php';
+            window.location.href = ordersUrl;
         } else {
             alert('Error: ' + data.message);
         }

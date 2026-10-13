@@ -268,7 +268,9 @@ document.addEventListener('DOMContentLoaded', function () {
         if (saveBtn) saveBtn.disabled = true;
         if (savePrintBtn) savePrintBtn.disabled = true;
 
-        fetch('../billing/save_bill.php', {
+        const saveBillUrl = (window.APP_BASE_URL ? window.APP_BASE_URL + '/billing/save_bill.php' : '../billing/save_bill.php');
+
+        fetch(saveBillUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -283,7 +285,8 @@ document.addEventListener('DOMContentLoaded', function () {
             if (data.success) {
                 alert('Bill Generated Successfully! Invoice: ' + data.invoice_no);
                 if (shouldPrint) {
-                    window.open(`../billing/print_invoice.php?invoice_no=${data.invoice_no}`, '_blank', 'width=400,height=600');
+                    const printUrl = (window.APP_BASE_URL ? window.APP_BASE_URL + `/billing/print_invoice.php?invoice_no=${data.invoice_no}` : `../billing/print_invoice.php?invoice_no=${data.invoice_no}`);
+                    window.open(printUrl, '_blank', 'width=400,height=600');
                 }
                 resetPOSCart();
                 // Optionally reload window or refresh inventory

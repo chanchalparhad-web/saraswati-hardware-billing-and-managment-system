@@ -26,6 +26,11 @@ $user = current_user();
 
     <!-- Custom CSS -->
     <link rel="stylesheet" href="<?php echo base_url('assets/css/style.css'); ?>">
+
+    <!-- Base URL for Frontend AJAX / Fetch -->
+    <script>
+        window.APP_BASE_URL = "<?php echo rtrim(base_url(), '/'); ?>";
+    </script>
 </head>
 <body>
 <div id="wrapper">

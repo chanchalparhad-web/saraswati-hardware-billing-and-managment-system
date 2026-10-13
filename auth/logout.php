@@ -1,8 +1,11 @@
 <?php
 require_once __DIR__ . '/../config/database.php';
 
-session_unset();
-session_destroy();
+$_SESSION = [];
+if (session_id() !== '') {
+    session_destroy();
+}
+clear_auth_cookie();
 
 header('Location: ' . base_url('auth/login.php'));
 exit;

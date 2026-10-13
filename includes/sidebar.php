@@ -1,7 +1,11 @@
 <?php
 require_once __DIR__ . '/../config/database.php';
 $user = current_user();
-$currentPage = basename($_SERVER['PHP_SELF']);
+$currentPath = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH);
+$currentPage = basename($currentPath ?: $_SERVER['PHP_SELF']);
+if (strpos($currentPage, '.php') === false && !empty($currentPage)) {
+    $currentPage .= '.php';
+}
 
 // Fetch low stock count for badge
 $db = get_db();
