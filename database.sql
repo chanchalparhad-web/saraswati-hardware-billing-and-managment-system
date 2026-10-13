@@ -236,7 +236,7 @@ CREATE TABLE IF NOT EXISTS `settings` (
 
 INSERT INTO `users` (`id`, `username`, `email`, `password`, `role`, `name`, `phone`, `status`) VALUES
 (1, 'admin', 'admin@hardwarestore.com', '$2y$10$e0MYzXyjpJS7Pd0RVvHwHe1z6JzC.83u8fVf3WvA7nS1O8z/3eRte', 'admin', 'Store Admin', '9876543210', 1),
-(2, 'cashier', 'cashier@hardwarestore.com', '$2y$10$e0MYzXyjpJS7Pd0RVvHwHe1z6JzC.83u8fVf3WvA7nS1O8z/3eRte', 'staff', 'Rajesh Cashier', '9876543211', 1),
+(2, 'cashier', 'cashier@hardwarestore.com', '$2y$10$e0MYzXyjpJS7Pd0RVvHwHe1z6JzC.83u8fVf3WvA7nS1O8z/3eRte', 'staff', 'Parmeshwar Cashier', '9876543211', 1),
 (3, 'customer', 'customer@gmail.com', '$2y$10$e0MYzXyjpJS7Pd0RVvHwHe1z6JzC.83u8fVf3WvA7nS1O8z/3eRte', 'customer', 'Amit Verma', '9876543212', 1)
 ON DUPLICATE KEY UPDATE `username`=`username`;
 
@@ -252,35 +252,15 @@ INSERT INTO `categories` (`id`, `name`, `description`) VALUES
 (9, 'Hardware Accessories', 'Hinges, door locks, handles, drawer slides, latches')
 ON DUPLICATE KEY UPDATE `name`=`name`;
 
-INSERT INTO `suppliers` (`id`, `supplier_name`, `company_name`, `mobile`, `email`, `address`, `gst_number`, `opening_balance`, `current_balance`) VALUES
-(1, 'Suresh Patel', 'Supreme Plumbing Supplies Pvt Ltd', '9820011223', 'sales@supreme.com', 'Plot 45, GIDC Industrial Estate, Ahmedabad', '24AAACS1234F1Z1', 0.00, 72400.00),
-(2, 'Vikas Gupta', 'Asian Paints Authorized Distr', '9811122334', 'orders@apdistributors.com', 'Building B, Industrial Area, Phase 2, Mumbai', '27AABCA5678G2Z4', 0.00, 18500.00),
-(3, 'Ramesh Kumar', 'Bosch & Stanley Power Tools Depot', '9833344556', 'ramesh@powertools.in', '78 Hardware Market, Delhi', '07AAACB9101H3Z9', 0.00, 0.00)
-ON DUPLICATE KEY UPDATE `company_name`=`company_name`;
-
-INSERT INTO `customers` (`id`, `name`, `mobile`, `email`, `address`, `gst_number`, `credit_limit`, `outstanding_amount`) VALUES
-(1, 'Walk-in Customer', '0000000000', 'walkin@store.com', 'Local Store Direct', NULL, 0.00, 0.00),
-(2, 'Rajesh Construction Co', '9844455667', 'rajesh@rajeshconst.com', '12 Civil Lines, Main City', '27AAECR4433P1ZB', 50000.00, 35600.00),
-(3, 'Sharma Electricians', '9855566778', 'sharma.elec@gmail.com', 'Shop 4, Electrical Market', NULL, 20000.00, 4500.00),
-(4, 'Amit Verma', '9876543212', 'customer@gmail.com', 'Flat 402, Sunshine Apartments', NULL, 10000.00, 0.00)
-ON DUPLICATE KEY UPDATE `name`=`name`;
-
--- Sample Expenses
-INSERT INTO `expenses` (`id`, `category`, `description`, `amount`, `expense_date`, `payment_method`, `notes`) VALUES
-(1, 'Shop Rent', 'Monthly shop premises rent for October', 12000.00, CURRENT_DATE(), 'bank_transfer', 'Owner bank account transfer'),
-(2, 'Electricity', 'Electricity bill payment for shop lighting and computer', 2850.00, CURRENT_DATE(), 'upi', 'Torrent power online bill'),
-(3, 'Transportation', 'Tempo freight charges for PVC pipes delivery from GIDC', 1400.00, CURRENT_DATE(), 'cash', 'Local transport auto drivers payment')
-ON DUPLICATE KEY UPDATE `category`=`category`;
-
 -- Default Settings
 INSERT INTO `settings` (`setting_key`, `setting_value`) VALUES
 ('shop_name', 'Saraswati Hardware'),
-('shop_address', '123 Main Hardware Market, Station Road, City'),
-('shop_phone', '+91 98765 43210'),
+('shop_address', 'Karodi, Chhatrapati Sambhaji Nagar, Maharashtra 431136'),
+('shop_phone', '+91 77739 57946'),
 ('shop_email', 'contact@abchardware.com'),
-('gstin', '27ABCDE1234F1Z5'),
+('gstin', '27B0EPG0856F1Z5'),
 ('currency', '₹'),
-('invoice_prefix', 'INV-'),
+('invoice_prefix', 'BILL NO:-'),
 ('thermal_printer_width', '80mm'),
 ('footer_note', 'Thank you for shopping with us! Visit again.')
 ON DUPLICATE KEY UPDATE `setting_key`=`setting_key`;
